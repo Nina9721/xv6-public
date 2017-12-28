@@ -21,6 +21,9 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
+  
+  uint numFreePages;//B10415024// store the numFreePages
+  uint pg_refcount[PHYSTOP >> PGSHIFT];//B10415024
 } kmem;
 
 // Initialization happens in two phases.
@@ -33,6 +36,9 @@ kinit1(void *vstart, void *vend)
 {
   initlock(&kmem.lock, "kmem");
   kmem.use_lock = 0;
+  //B10415024
+  // Initialize the numFreePages
+  kmem.numFreePages = 0;
   freerange(vstart, vend);
 }
 
@@ -49,7 +55,12 @@ freerange(void *vstart, void *vend)
   char *p;
   p = (char*)PGROUNDUP((uint)vstart);
   for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
+  {
+    //B10415024
+    // Initialize the refcount
+    kmem.pg_refcount[V2P(p) >> PGSHIFT] = 0;
     kfree(p);
+  }
 }
 //PAGEBREAK: 21
 // Free the page of physical memory pointed at by v,
@@ -64,14 +75,26 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
-  memset(v, 1, PGSIZE);
 
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = (struct run*)v;
-  r->next = kmem.freelist;
-  kmem.freelist = r;
+
+  //B10415024
+  // Someone free it
+  if(kmem.pg_refcount[V2P(v) >> PGSHIFT] > 0)
+    --kmem.pg_refcount[V2P(v) >> PGSHIFT];
+ 
+  // No reference to the page -> free the page
+  if(kmem.pg_refcount[V2P(v) >> PGSHIFT] == 0)
+  { 
+    // Fill with junk to catch dangling refs.
+    memset(v, 1, PGSIZE);
+    // When a page is freed
+    kmem.numFreePages++;
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
 }
@@ -88,7 +111,14 @@ kalloc(void)
     acquire(&kmem.lock);
   r = kmem.freelist;
   if(r)
+  {
     kmem.freelist = r->next;
+    //B10415024
+    // On a page allocation
+    kmem.numFreePages--;
+    // When allocate
+    kmem.pg_refcount[V2P((char*)r) >> PGSHIFT] = 1;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
   return (char*)r;
