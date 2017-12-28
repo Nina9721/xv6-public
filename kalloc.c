@@ -124,3 +124,49 @@ kalloc(void)
   return (char*)r;
 }
 
+//B10415011
+uint 
+getNumFreePages(void)
+{
+  acquire(&kmem.lock);
+  uint numFreePages = kmem.numFreePages;
+  release(&kmem.lock);
+  return numFreePages;
+}
+
+//B10415011
+uint 
+getRefcount(uint pa)
+{
+  if(pa < (uint)V2P(end) || pa >= PHYSTOP)
+    panic("getRefcount");
+  
+  acquire(&kmem.lock);
+  uint count = kmem.pg_refcount[pa >> PGSHIFT];
+  release(&kmem.lock);
+  return count;
+}
+
+//B10415011
+void
+decrementRefcount(uint pa)
+{
+  if(pa < (uint)V2P(end) || pa >= PHYSTOP)
+    panic("decrementRefcount");
+  
+  acquire(&kmem.lock);
+  --kmem.pg_refcount[pa >> PGSHIFT];
+  release(&kmem.lock);
+}
+
+//B10415011
+void
+incrementRefcount(uint pa)
+{
+  if(pa < (uint)V2P(end) || pa >= PHYSTOP)
+    panic("incrementRefcount");
+  
+  acquire(&kmem.lock);
+  ++kmem.pg_refcount[pa >> PGSHIFT];
+  release(&kmem.lock);
+}
