@@ -89,3 +89,10 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+//B10415011
+int 
+sys_getNumFreePages(void)
+{
+  return getNumFreePages();
+}
