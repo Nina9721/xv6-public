@@ -95,6 +95,7 @@ kfree(char *v)
     r->next = kmem.freelist;
     kmem.freelist = r;
   }
+  
   if(kmem.use_lock)
     release(&kmem.lock);
 }
@@ -133,7 +134,6 @@ getNumFreePages(void)
   release(&kmem.lock);
   return numFreePages;
 }
-
 //B10415011
 uint 
 getRefcount(uint pa)
@@ -146,7 +146,6 @@ getRefcount(uint pa)
   release(&kmem.lock);
   return count;
 }
-
 //B10415011
 void
 decrementRefcount(uint pa)
@@ -158,7 +157,6 @@ decrementRefcount(uint pa)
   --kmem.pg_refcount[pa >> PGSHIFT];
   release(&kmem.lock);
 }
-
 //B10415011
 void
 incrementRefcount(uint pa)

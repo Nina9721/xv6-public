@@ -47,7 +47,7 @@ trap(struct trapframe *tf)
   }
 
   switch(tf->trapno){
-   //B10415024
+  //B10415024
   case T_PGFLT:
     pagefault(tf->err);
     break;
